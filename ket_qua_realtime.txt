@@ -1,0 +1,6 @@
+Thoi gian chay           : 59.2 s
+So mau da xu ly          : 881
+FPS hien thi trung binh  : 24.0
+Xu ly 1 mau (trung binh) : 8.4 ms
+Xu ly 1 mau (95%)        : 11.2 ms
+Do tre cua so            : 2.0 s (do cua so 30 mau)

@@ -1,0 +1,24 @@
+DU LIEU: 691 cua so, 6 nguoi. Danh gia Leave-One-Subject-Out, nguong 0.5
+
+Nhom dac trung                                   Mo hinh         Acc   Prec  Recall     F1   FP   FN
+A. Chi mat (EAR)                                 LogReg        0.787  0.825   0.715  0.766   51   96
+A. Chi mat (EAR)                                 RF(bao thu)   0.795  0.852   0.700  0.769   41  101
+B. Mat + mieng (EAR, MAR)                        LogReg        0.842  0.858   0.810  0.834   45   64
+B. Mat + mieng (EAR, MAR)                        RF(bao thu)   0.870  0.902   0.822  0.860   30   60
+C. B + do dao dong dau (pitch/yaw/roll _std)     LogReg        0.822  0.839   0.786  0.812   51   72
+C. B + do dao dong dau (pitch/yaw/roll _std)     RF(bao thu)   0.871  0.900   0.828  0.862   31   58
+D. Tat ca 20 dac trung                           LogReg        0.864  0.904   0.807  0.853   29   65
+D. Tat ca 20 dac trung                           RF(bao thu)   0.878  0.880   0.869  0.875   40   44
+
+DO CHINH XAC THEO TUNG NGUOI (moi nguoi la nguoi 'moi' chua thay luc huan luyen)
+Nhom dac trung                                   Mo hinh         S01    S02    S03    S04    S05    S06
+A. Chi mat (EAR)                                 LogReg         0.71   0.83   0.83   0.89   0.64   0.82
+A. Chi mat (EAR)                                 RF(bao thu)    0.74   0.86   0.80   0.85   0.70   0.82
+B. Mat + mieng (EAR, MAR)                        LogReg         0.73   0.90   0.87   0.92   0.75   0.88
+B. Mat + mieng (EAR, MAR)                        RF(bao thu)    0.79   0.96   0.87   0.91   0.85   0.84
+C. B + do dao dong dau (pitch/yaw/roll _std)     LogReg         0.70   0.86   0.87   0.93   0.76   0.80
+C. B + do dao dong dau (pitch/yaw/roll _std)     RF(bao thu)    0.78   0.95   0.87   0.92   0.85   0.86
+D. Tat ca 20 dac trung                           LogReg         0.84   0.89   0.94   0.89   0.76   0.86
+D. Tat ca 20 dac trung                           RF(bao thu)    0.79   0.87   0.91   0.98   0.86   0.86
+
+Doc ket qua: nhom nao co Acc/F1 cao VA do chinh xac deu giua cac nguoi (khong co nguoi nao ~0) la nhom tong quat hoa tot.

@@ -1,0 +1,53 @@
+======================================================================
+DU LIEU: 691 cua so | 6 nguoi ['S01', 'S02', 'S03', 'S04', 'S05', 'S06']
+Tinh tao (0): 354 | Buon ngu (1): 337
+
+======================================================================
+DANH GIA LEAVE-ONE-SUBJECT-OUT (nguong 0.5) - nhan 'Buon ngu' la lop duong
+Mo hinh                                     Acc   Prec  Recall     F1   FN
+Baseline: 1 nguong tren ear_mean          0.790  0.881   0.659  0.754  115
+Logistic Regression                       0.864  0.904   0.807  0.853   65
+SVM (RBF)                                 0.890  0.880   0.896  0.888   35
+Random Forest (tinh chinh)                0.871  0.858   0.881  0.870   40
+
+======================================================================
+RANDOM FOREST - MA TRAN NHAM LAN (tong hop cac lan giu-1-nguoi, nguong 0.5)
+                  Du doan: Tinh tao   Du doan: Buon ngu
+Thuc te Tinh tao            305               49   (FP = canh bao nham)
+Thuc te Buon ngu             40              297   (FN = BO SOT, nguy hiem nhat)
+
+ANH HUONG CUA NGUONG CANH BAO (ha nguong -> Recall tang, canh bao nham tang)
+ Nguong   Prec  Recall     F1   FP   FN
+    0.3  0.741   0.926  0.823  109   25
+    0.4  0.801   0.905  0.850   76   32
+    0.5  0.858   0.881  0.870   49   40
+    0.6  0.909   0.834  0.870   28   56
+    0.7  0.960   0.709  0.816   10   98
+
+KET QUA THEO TUNG NGUOI (mo hinh chua tung thay nguoi nay luc huan luyen)
+   Nguoi  So cua so    Acc  Recall
+     S01        118  0.822   0.847
+     S02        118  0.780   0.915
+     S03        116  0.914   0.965
+     S04        115  0.974   0.964
+     S05        110  0.900   0.902
+     S06        114  0.842   0.691
+
+======================================================================
+HUAN LUYEN MO HINH CUOI CUNG (tren toan bo nguoi)
+Sieu tham so tot nhat: {'randomforestclassifier__max_depth': 10, 'randomforestclassifier__min_samples_leaf': 1, 'randomforestclassifier__n_estimators': 100}
+Da luu mo hinh: model.pkl
+
+TOP 10 DAC TRUNG QUAN TRONG NHAT:
+   ear_mean     0.245
+   pitch_max    0.107
+   mar_max      0.093
+   mar_mean     0.065
+   pitch_mean   0.061
+   ear_max      0.054
+   ear_min      0.053
+   pitch_min    0.049
+   mar_std      0.040
+   mar_min      0.036
+
+LUU Y: du lieu it nguoi nen ket qua dao dong nhieu giua cac nguoi; them nguoi tham gia se dang tin hon.
