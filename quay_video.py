@@ -5,6 +5,10 @@ và tự lưu đúng thư mục + đúng tên cho Bước 4.
 Dùng camera đã chọn trong camera_cfg.py.
 Chạy:  python quay_video.py   rồi trả lời 3 câu hỏi.
 Bấm q trong lúc quay để hủy clip đó.
+
+Tên file lưu: <mã người>_<điều kiện>_<số>.mp4, ví dụ S01_dem_1.mp4
+Điều kiện: ngay | dem | kinh (ngày, đeo kính) | demkinh (đêm, đeo kính) | dui (dụi một mắt)
+Quay "dui" vào nhãn tỉnh táo: đó là mẫu để kiểm chứng việc dụi mắt KHÔNG bị cảnh báo.
 """
 
 import time
@@ -19,15 +23,19 @@ HUONG_DAN = {
     "tinh_tao": "Nhin thang, chop mat binh thuong, co the noi chuyen",
     "buon_ngu": "Nham mat lau 1-2 giay, ngap, gat gu nhu buon ngu",
 }
+HUONG_DAN_DUI = "Dui MOT mat bang tay (khoang 3-5 giay), nghi, roi dui lai. Mat con lai mo binh thuong"
 
 
-def quay(ma, ten_nhan, giay, dem_nguoc=5):
+DIEU_KIEN = {"1": "ngay", "2": "dem", "3": "kinh", "4": "demkinh", "5": "dui"}
+
+
+def quay(ma, ten_nhan, giay, dieu_kien="ngay", dem_nguoc=5):
     thu_muc = Path("videos") / ten_nhan
     thu_muc.mkdir(parents=True, exist_ok=True)
     n = 1
-    while (thu_muc / f"{ma}_{n}.mp4").exists():
+    while (thu_muc / f"{ma}_{dieu_kien}_{n}.mp4").exists():
         n += 1
-    duong_dan = thu_muc / f"{ma}_{n}.mp4"
+    duong_dan = thu_muc / f"{ma}_{dieu_kien}_{n}.mp4"
 
     cap = mo_camera()
     ok, frame = cap.read()
@@ -69,7 +77,7 @@ def quay(ma, ten_nhan, giay, dem_nguoc=5):
                 tiep += 1.0 / TAN_SO_MAU
 
         cv2.putText(hien, dong1, (10, 35), cv2.FONT_HERSHEY_SIMPLEX, 1.0, mau, 2)
-        cv2.putText(hien, HUONG_DAN[ten_nhan], (10, h - 15),
+        cv2.putText(hien, HUONG_DAN_DUI if dieu_kien == "dui" else HUONG_DAN[ten_nhan], (10, h - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.imshow("Quay video (bam q de huy)", hien)
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -92,7 +100,13 @@ if __name__ == "__main__":
     ma = input("Ma nguoi (vi du S01): ").strip().replace("_", "") or "S01"
     chon = input("Nhan: 1 = tinh tao, 2 = buon ngu : ").strip()
     ten_nhan = "buon_ngu" if chon == "2" else "tinh_tao"
+    print("Dieu kien: 1 = ngay | 2 = dem | 3 = kinh (ngay) | 4 = dem + kinh | 5 = dui mot mat")
+    dk = DIEU_KIEN.get(input("Dieu kien (Enter = 1): ").strip() or "1", "ngay")
+    if dk == "dui" and ten_nhan != "tinh_tao":
+        print("Video dui mat la mau KHONG buon ngu -> tu dong chuyen sang nhan tinh_tao.")
+        ten_nhan = "tinh_tao"
     g = input("So giay quay (Enter = 60): ").strip()
     giay = int(g) if g.isdigit() else 60
-    print(f"\nSe quay {giay}s, nguoi={ma}, nhan={ten_nhan}. Huong dan: {HUONG_DAN[ten_nhan]}")
-    quay(ma, ten_nhan, giay)
+    huong_dan = HUONG_DAN_DUI if dk == "dui" else HUONG_DAN[ten_nhan]
+    print(f"\nSe quay {giay}s, nguoi={ma}, nhan={ten_nhan}, dieu kien={dk}. Huong dan: {huong_dan}")
+    quay(ma, ten_nhan, giay, dk)

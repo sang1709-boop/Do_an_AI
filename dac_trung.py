@@ -5,6 +5,9 @@ File này KHÔNG cần webcam, chỉ cần NumPy. Các bước sau (trích xuấ
 chạy realtime) sẽ import lại file này:  from dac_trung import ...
 """
 
+import json
+import os
+
 import numpy as np
 
 # ---- Chỉ số (index) các điểm mốc trong lưới 478 điểm của MediaPipe ----
@@ -16,6 +19,16 @@ MAT_TRAI = [362, 385, 387, 263, 373, 380]
 # Miệng (viền môi trong): 3 cặp điểm dọc + 1 cặp khóe miệng (ngang)
 MIENG_DOC = [(82, 87), (13, 14), (312, 317)]
 MIENG_NGANG = (78, 308)
+
+# ---- Điểm mốc để VẼ / định vị thêm ----
+# Khóe mắt: 33, 133 (mắt phải: ngoài, trong) và 362, 263 (mắt trái: trong, ngoài)
+KHOE_MAT = [33, 133, 362, 263]
+# Viền khuôn mặt (face oval, 36 điểm, theo thứ tự đi vòng quanh mặt)
+VIEN_MAT = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365,
+            379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93,
+            234, 127, 162, 21, 54, 103, 67, 109]
+# Hai điểm ngoài cùng hai bên má: dùng làm "thước" bề rộng khuôn mặt
+RONG_MAT = (234, 454)
 
 
 def lay_toa_do(landmarks, w, h):
@@ -113,3 +126,79 @@ def tao_cac_cua_so(chuoi_mau):
         v = vector_cua_so(chuoi_mau[s:s + CUA_SO])
         if v is not None:
             yield s, v
+
+# =====================================================================
+# MẮT: GỘP EAR HAI MẮT, LOẠI MẮT KHÔNG ĐÁNG TIN (DỤI MẮT / KÍNH LOÁ)
+# Dùng chung cho Bước 4 (tao_du_lieu) và Bước 6 (realtime).
+# =====================================================================
+FILE_NGUONG_PHU = "nguong_phu.json"      # tao_du_lieu.py ghi, realtime.py đọc
+NGUONG_LECH_MAT_MAC_DINH = 0.35          # chỉ dùng khi chưa có nguong_phu.json
+
+
+def ear_hai_mat(pts):
+    """Trả về (EAR mắt phải, EAR mắt trái)."""
+    return ear_mot_mat(pts, MAT_PHAI), ear_mot_mat(pts, MAT_TRAI)
+
+
+def lech_hai_mat(ear_p, ear_t):
+    """Độ lệch giữa hai mắt = |ln(EAR_phải / EAR_trái)|.
+
+    Dùng tỉ số (log) nên không phụ thuộc mắt to hay nhỏ. 0 = hai mắt giống hệt nhau.
+    Hai mắt thật sự buồn ngủ thì nhắm CÙNG LÚC (lệch nhỏ); dụi một mắt thì một mắt bị tay
+    che/nheo còn mắt kia vẫn mở (lệch lớn).
+    """
+    return abs(float(np.log(max(ear_p, 1e-6) / max(ear_t, 1e-6))))
+
+
+def gop_ear(ear_p, ear_t, loa_p=False, loa_t=False, che_p=False, che_t=False,
+            nguong_lech=NGUONG_LECH_MAT_MAC_DINH):
+    """Gộp EAR hai mắt thành MỘT số, loại bỏ mắt không đáng tin.
+
+    loa_*: mắt bị kính loá;  che_*: mắt bị tay che (phát hiện bằng điểm tay của Pose).
+    Trả về (ear, ly_do), ly_do là một trong:
+        "ok"            hai mắt bình thường -> trung bình hai mắt
+        "loa" / "che"   một mắt loá / bị che -> dùng mắt còn lại
+        "dui"           hai mắt lệch nhau hơn nguong_lech -> dùng mắt MỞ HƠN
+                        (nếu thật sự buồn ngủ thì mắt mở hơn cũng sẽ nhắm theo)
+        "khong_do_duoc" cả hai mắt đều không đáng tin -> ear = NaN
+    """
+    if np.isnan(ear_p) or np.isnan(ear_t):
+        return float("nan"), "khong_do_duoc"
+    xau_p, xau_t = bool(loa_p or che_p), bool(loa_t or che_t)
+    if xau_p and xau_t:
+        return float("nan"), "khong_do_duoc"
+    if xau_p:
+        return ear_t, ("che" if che_p else "loa")
+    if xau_t:
+        return ear_p, ("che" if che_t else "loa")
+    if lech_hai_mat(ear_p, ear_t) > nguong_lech:
+        return max(ear_p, ear_t), "dui"
+    return (ear_p + ear_t) / 2.0, "ok"
+
+
+def hang_mau(ear_p, ear_t, mar, pitch, yaw, roll, loa_p=False, loa_t=False,
+             che_p=False, che_t=False, nguong_lech=NGUONG_LECH_MAT_MAC_DINH):
+    """Tạo MỘT hàng [ear, mar, pitch, yaw, roll] cho cửa sổ trượt (cùng logic train/realtime).
+
+    Trả về (hang, ly_do). Nếu mắt không đo được thì cả hàng là NaN (cửa sổ coi như thiếu mặt).
+    """
+    ear, ly_do = gop_ear(ear_p, ear_t, loa_p, loa_t, che_p, che_t, nguong_lech)
+    if np.isnan(ear) or any(np.isnan(v) for v in (mar, pitch, yaw, roll)):
+        return [float("nan")] * 5, ly_do
+    return [ear, mar, pitch, yaw, roll], ly_do
+
+
+def luu_nguong_phu(du_lieu, duong_dan=FILE_NGUONG_PHU):
+    with open(duong_dan, "w", encoding="utf-8") as f:
+        json.dump(du_lieu, f, indent=2, ensure_ascii=False)
+
+
+def doc_nguong_lech(duong_dan=FILE_NGUONG_PHU):
+    """Ngưỡng lệch hai mắt do tao_du_lieu.py tính từ dữ liệu; không có file thì dùng mặc định."""
+    if os.path.exists(duong_dan):
+        try:
+            with open(duong_dan, encoding="utf-8") as f:
+                return float(json.load(f)["nguong_lech_mat"])
+        except (ValueError, KeyError, OSError):
+            pass
+    return NGUONG_LECH_MAT_MAC_DINH
