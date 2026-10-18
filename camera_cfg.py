@@ -22,7 +22,7 @@ DUNG_DROIDCAM = False
 DROIDCAM_URL = "http://192.168.100.248:4747/video"
 
 # Số thứ tự camera trong máy (0, 1, 2...). Chạy "python camera_cfg.py tim" để biết số nào.
-WEBCAM_INDEX = 1
+WEBCAM_INDEX = 0
 # ==============================================
 
 # Giữ tên NGUON_CAMERA để các file khác (nếu có import) vẫn chạy được

@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .vscode/
 .idea/
+
+.venv/
+venv/
+__pycache__/
+*.pyc
