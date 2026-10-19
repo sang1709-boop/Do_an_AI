@@ -1,53 +1,95 @@
 ======================================================================
-DU LIEU: 691 cua so | 6 nguoi ['S01', 'S02', 'S03', 'S04', 'S05', 'S06']
-Tinh tao (0): 354 | Buon ngu (1): 337
+DU LIEU: 1913 cua so | 12 nguoi ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09', 'S10', 'S11', 'S20']
+Tinh tao (0): 1254 | Buon ngu (1): 659
+CANH BAO: nguoi ['S08', 'S09'] chi co 1 nhan -> AUC rieng cua ho khong tinh duoc; nen quay du ca 2 nhan cho moi nguoi.
 
 ======================================================================
-DANH GIA LEAVE-ONE-SUBJECT-OUT (nguong 0.5) - nhan 'Buon ngu' la lop duong
-Mo hinh                                     Acc   Prec  Recall     F1   FN
-Baseline: 1 nguong tren ear_mean          0.790  0.881   0.659  0.754  115
-Logistic Regression                       0.864  0.904   0.807  0.853   65
-SVM (RBF)                                 0.890  0.880   0.896  0.888   35
-Random Forest (tinh chinh)                0.871  0.858   0.881  0.870   40
+DANH GIA LEAVE-ONE-SUBJECT-OUT - nhan 'Buon ngu' la lop duong
+AUC khong phu thuoc nguong. Cac cot con lai tinh tai nguong Youden rieng cua tung mo hinh.
+Mo hinh                                     AUC  Nguong    Acc   Prec  Recall     F1   FN
+Baseline: 1 nguong tren ear_mean          0.682   0.496  0.808  0.800   0.590  0.679  270
+Logistic Regression                       0.817   0.627  0.768  0.647   0.719  0.681  185
+SVM (RBF)                                 0.887   0.728  0.822  0.733   0.762  0.747  157
+Random Forest (tinh chinh)                0.918   0.560  0.865  0.819   0.778  0.798  146
 
 ======================================================================
-RANDOM FOREST - MA TRAN NHAM LAN (tong hop cac lan giu-1-nguoi, nguong 0.5)
+CHON NGUONG CANH BAO CHO RANDOM FOREST
+AUC = 0.918 | Average Precision = 0.895
+Moi nguong la mot diem tren duong ROC: ha nguong -> Recall tang nhung bao nham tang.
+Cach chon                           Nguong   Prec  Recall     F1   FP   FN
+Mac dinh cu (0.5, khong co co so)    0.500  0.757   0.821  0.787  174  118
+Youden J (max Recall - FPR)          0.560  0.819   0.778  0.798  113  146
+EER (bao nham = bo sot)              0.468  0.730   0.838  0.780  204  107
+Recall >= 0.95                       0.235  0.508   0.951  0.662  607   32
+
+=> NGUONG DUOC CHON (youden): 0.560
+Do on dinh (bootstrap 500 lan, lay mau lai theo NGUOI): trung vi 0.524, khoang 95% [0.416; 0.679]
+
+UOC LUONG KHACH QUAN (nguong cua moi nguoi duoc chon CHI tu nhung nguoi con lai):
+   Acc 0.832 | Prec 0.754 | Recall 0.762 | F1 0.758 | FP 164 | FN 157
+   Day moi la so nen bao cao; so o bang tren hoi lac quan vi chon va do tren cung du lieu.
+
+======================================================================
+MA TRAN NHAM LAN (tong hop cac lan giu-1-nguoi)
+  [nguong 0.5 (cu)]
                   Du doan: Tinh tao   Du doan: Buon ngu
-Thuc te Tinh tao            305               49   (FP = canh bao nham)
-Thuc te Buon ngu             40              297   (FN = BO SOT, nguy hiem nhat)
+  Thuc te Tinh tao           1080              174   (FP = canh bao nham)
+  Thuc te Buon ngu            118              541   (FN = BO SOT, nguy hiem nhat)
+  [nguong 0.560 (da chon)]
+                  Du doan: Tinh tao   Du doan: Buon ngu
+  Thuc te Tinh tao           1141              113   (FP = canh bao nham)
+  Thuc te Buon ngu            146              513   (FN = BO SOT, nguy hiem nhat)
 
-ANH HUONG CUA NGUONG CANH BAO (ha nguong -> Recall tang, canh bao nham tang)
+ANH HUONG CUA NGUONG CANH BAO
  Nguong   Prec  Recall     F1   FP   FN
-    0.3  0.741   0.926  0.823  109   25
-    0.4  0.801   0.905  0.850   76   32
-    0.5  0.858   0.881  0.870   49   40
-    0.6  0.909   0.834  0.870   28   56
-    0.7  0.960   0.709  0.816   10   98
+  0.300  0.557   0.924  0.695  484   50
+  0.400  0.671   0.876  0.760  283   82
+  0.500  0.757   0.821  0.787  174  118
+  0.560  0.819   0.778  0.798  113  146  <-- da chon
+  0.600  0.845   0.747  0.793   90  167
+  0.700  0.932   0.690  0.793   33  204
 
-KET QUA THEO TUNG NGUOI (mo hinh chua tung thay nguoi nay luc huan luyen)
+KET QUA THEO TUNG NGUOI (mo hinh chua tung thay nguoi nay luc huan luyen, nguong da chon)
    Nguoi  So cua so    Acc  Recall
-     S01        118  0.822   0.847
-     S02        118  0.780   0.915
-     S03        116  0.914   0.965
-     S04        115  0.974   0.964
-     S05        110  0.900   0.902
-     S06        114  0.842   0.691
+     S01        118  0.831   0.881
+     S02        118  0.915   0.898
+     S03        116  0.940   0.895
+     S04        116  0.940   0.877
+     S05        111  0.829   0.673
+     S06        114  0.789   0.564
+     S07         92  0.859   0.971
+     S08         59  1.000   0.000
+     S09        272  0.824   0.000
+     S10        132  0.871   0.759
+     S11        308  0.864   0.681
+     S20        357  0.854   0.757
+
+KET QUA THEO DIEU KIEN QUAY (ngay / dem / kinh / demkinh / dui ...), nguong da chon
+ Dieu kien  So cua so    Acc  Bao nham(FP)  Bo sot(FN)
+       dem        222  0.851            18          15
+   demkinh         52  0.923             4           0
+       dui        117  0.761            28           0
+  khong_ro        785  0.873            32          68
+      kinh        173  0.879             6          15
+       lai        112  0.964             4           0
+      ngay        452  0.847            21          48
+   ('dui' = quay luc dui mat mot ben, nhan tinh tao: FP o day la bao nham do dui mat)
 
 ======================================================================
 HUAN LUYEN MO HINH CUOI CUNG (tren toan bo nguoi)
-Sieu tham so tot nhat: {'randomforestclassifier__max_depth': 10, 'randomforestclassifier__min_samples_leaf': 1, 'randomforestclassifier__n_estimators': 100}
-Da luu mo hinh: model.pkl
+Sieu tham so tot nhat: {'randomforestclassifier__max_depth': None, 'randomforestclassifier__min_samples_leaf': 3, 'randomforestclassifier__n_estimators': 300}
+Da luu mo hinh: model.pkl  (nguong canh bao = 0.560)
 
 TOP 10 DAC TRUNG QUAN TRONG NHAT:
-   ear_mean     0.245
-   pitch_max    0.107
-   mar_max      0.093
-   mar_mean     0.065
-   pitch_mean   0.061
-   ear_max      0.054
-   ear_min      0.053
-   pitch_min    0.049
-   mar_std      0.040
-   mar_min      0.036
+   ear_mean     0.204
+   ear_min      0.121
+   ear_max      0.086
+   mar_max      0.072
+   mar_mean     0.066
+   mar_min      0.053
+   pitch_max    0.046
+   mar_std      0.041
+   yaw_mean     0.038
+   pitch_mean   0.034
 
 LUU Y: du lieu it nguoi nen ket qua dao dong nhieu giua cac nguoi; them nguoi tham gia se dang tin hon.

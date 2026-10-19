@@ -202,3 +202,107 @@ def doc_nguong_lech(duong_dan=FILE_NGUONG_PHU):
         except (ValueError, KeyError, OSError):
             pass
     return NGUONG_LECH_MAT_MAC_DINH
+
+
+# =====================================================================
+# GIẤC NGỦ TRẮNG (MICROSLEEP): MẮT VẪN MỞ NHƯNG NÃO KHÔNG XỬ LÝ THÔNG TIN
+# Cửa sổ 2 giây không thấy được "không chớp mắt" hay "nhìn trân trân", nên dùng cửa sổ DÀI
+# 10 giây với các đặc trưng hành vi: chớp mắt, ánh nhìn (mống mắt), chuyển động đầu.
+# Bộ phát hiện này tách riêng (model_dai.pkl), huấn luyện bằng huan_luyen_dai.py.
+# =====================================================================
+IRIS_PHAI, IRIS_TRAI = 468, 473          # tâm mống mắt trong lưới 478 điểm
+
+CUA_SO_DAI = 150                         # 10 giây ở 15 mẫu/giây
+BUOC_DAI = 75                            # dịch 5 giây
+TI_LE_DIP_CHOP = 0.8                     # EAR tụt dưới 80% mức mắt-mở của cửa sổ = một lần chớp / sụp mí
+
+TEN_CHI_SO_DAI = ["ear", "mar", "pitch", "yaw", "roll", "gx", "gy"]
+TEN_DAC_TRUNG_DAI = [
+    "ear_mean", "ear_std", "ear_range", "ear_min_rel",       # mức mở mắt và dao động
+    "chop_so", "khoang_khong_chop_max",                      # chớp mắt (lần, giây dài nhất không chớp)
+    "mar_mean", "mar_max",                                   # ngáp
+    "pitch_std", "yaw_std", "roll_std", "dau_toc_do", "pitch_xu_huong",  # đầu
+    "nhin_std_x", "nhin_std_y", "nhin_toc_do",               # ánh nhìn
+]
+
+
+def huong_nhin(pts):
+    """Hướng nhìn (gx, gy) = vị trí mống mắt trong mắt, trung bình hai mắt.
+
+    gx: 0 = mống mắt sát khóe trái ảnh, 1 = sát khóe phải ảnh (dọc theo trục khóe-khóe).
+    gy: lệch lên/xuống so với tâm mắt, chia cho bề rộng mắt. Đo trong hệ của mắt nên ít bị
+    ảnh hưởng khi cả đầu di chuyển.
+    """
+    gx, gy = [], []
+    for idx, iris in ((MAT_PHAI, IRIS_PHAI), (MAT_TRAI, IRIS_TRAI)):
+        a = pts[idx[0]]                       # khóe trái ảnh của mắt này
+        b = pts[idx[3]]                       # khóe phải ảnh
+        truc = b - a
+        rong = float(np.linalg.norm(truc))
+        if rong < 1e-6:
+            return float("nan"), float("nan")
+        t = float(np.dot(pts[iris] - a, truc) / (rong ** 2))
+        gx.append(t)
+        gy.append(float((pts[iris][1] - (a[1] + b[1]) / 2.0) / rong))
+    return float(np.mean(gx)), float(np.mean(gy))
+
+
+def _noi_suy_nan(c):
+    """Lấp các mẫu NaN bằng nội suy tuyến tính (cửa sổ đã đảm bảo >= 80% có mặt)."""
+    c = np.asarray(c, dtype=float).copy()
+    x = np.arange(len(c))
+    ok = ~np.isnan(c)
+    if ok.sum() == 0:
+        return c
+    c[~ok] = np.interp(x[~ok], x[ok], c[ok])
+    return c
+
+
+def vector_cua_so_dai(cua_so_mau):
+    """Vector đặc trưng của MỘT cửa sổ dài.
+
+    cua_so_mau: mảng (n, 7) = [ear, mar, pitch, yaw, roll, gx, gy]; hàng NaN = không thấy mặt.
+    Trả về mảng len(TEN_DAC_TRUNG_DAI) số, hoặc None nếu thiếu mặt quá nhiều.
+    """
+    a = np.asarray(cua_so_mau, dtype=float)
+    if len(a) == 0 or (~np.isnan(a).any(axis=1)).mean() < TI_LE_CO_MAT_TOI_THIEU:
+        return None
+    ear, mar, pitch, yaw, roll, gx, gy = [_noi_suy_nan(a[:, j]) for j in range(7)]
+    n = len(a)
+    tan_so = float(TAN_SO_MAU)
+
+    # --- chớp mắt / sụp mí: EAR tụt dưới 80% mức "mắt mở" (phân vị 90) của chính cửa sổ ---
+    mo = np.percentile(ear, 90)
+    thap = ear < TI_LE_DIP_CHOP * mo
+    chop = int(np.sum(thap[1:] & ~thap[:-1]) + (1 if thap[0] else 0))
+    dai_nhat, hien_tai = 0, 0
+    for v in thap:
+        if v:
+            dai_nhat = max(dai_nhat, hien_tai)
+            hien_tai = 0
+        else:
+            hien_tai += 1
+    dai_nhat = max(dai_nhat, hien_tai)
+
+    def toc_do(*cs):                          # trung bình |thay đổi| mỗi giây, cộng các kênh
+        return float(sum(np.abs(np.diff(c)).mean() for c in cs) * tan_so)
+
+    xu_huong = float(np.polyfit(np.arange(n) / tan_so, pitch, 1)[0])   # độ / giây
+
+    return np.array([
+        ear.mean(), ear.std(), np.percentile(ear, 95) - np.percentile(ear, 5),
+        ear.min() / max(mo, 1e-6),
+        chop, dai_nhat / tan_so,
+        mar.mean(), mar.max(),
+        pitch.std(), yaw.std(), roll.std(), toc_do(pitch, yaw, roll), xu_huong,
+        gx.std(), gy.std(), toc_do(gx, gy),
+    ])
+
+
+def tao_cac_cua_so_dai(chuoi_mau):
+    """Trượt cửa sổ dài trên cả chuỗi mẫu (n, 7). Sinh ra (vị trí mẫu bắt đầu, vector)."""
+    chuoi_mau = np.asarray(chuoi_mau, dtype=float)
+    for s in range(0, len(chuoi_mau) - CUA_SO_DAI + 1, BUOC_DAI):
+        v = vector_cua_so_dai(chuoi_mau[s:s + CUA_SO_DAI])
+        if v is not None:
+            yield s, v
