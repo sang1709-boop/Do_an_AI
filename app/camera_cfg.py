@@ -4,7 +4,7 @@ camera_cfg.py - Nơi DUY NHẤT cần sửa để chọn nguồn camera cho mọ
 
 Cách dùng:
     python camera_cfg.py        -> mở camera đang chọn để test (bấm q để thoát)
-    python camera_cfg.py tim    -> thử camera 0..4, lưu ảnh camera_0.jpg, camera_1.jpg...
+    python camera_cfg.py tim    -> thử camera 0..4, lưu ảnh reports/camera_0.jpg, reports/camera_1.jpg...
                                    Mở ảnh xem camera nào là iPhone / webcam rồi điền
                                    số đó vào WEBCAM_INDEX bên dưới.
 """
@@ -59,8 +59,9 @@ def tim_camera(so_luong=5):
         ok, frame = cap.read()
         if ok:
             h, w = frame.shape[:2]
-            cv2.imwrite(str(report_file(f"camera_{i}.jpg")), frame)
-            print(f"Camera {i}: OK, kich thuoc {w}x{h}, da luu camera_{i}.jpg")
+            path = report_file(f"camera_{i}.jpg")
+            cv2.imwrite(str(path), frame)
+            print(f"Camera {i}: OK, kich thuoc {w}x{h}, da luu {path}")
         else:
             print(f"Camera {i}: mo duoc nhung khong doc duoc khung hinh")
         cap.release()

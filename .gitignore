@@ -1,4 +1,3 @@
-# Python environments and temporary files
 venv/
 .venv/
 **/__pycache__/
@@ -9,9 +8,15 @@ venv/
 .env
 .env.*
 !.env.example
-# Training footage, model weights, private data and generated outputs
+backup/
 /videos/**
 !/videos/.gitkeep
+!/videos/tinh_tao/
+!/videos/buon_ngu/
+!/videos/ngu_mat_mo/
+!/videos/tinh_tao/.gitkeep
+!/videos/buon_ngu/.gitkeep
+!/videos/ngu_mat_mo/.gitkeep
 /data/**
 !/data/.gitkeep
 /models/**
@@ -27,6 +32,9 @@ venv/
 *.task
 *.csv
 *.log
-# Local legacy output files
 ket_qua_*.txt
 camera_*.jpg
+/roc_nguong.png
+/nguong_vs_chi_so.png
+/do_quan_trong_dac_trung.png
+/ma_tran_nham_lan.png

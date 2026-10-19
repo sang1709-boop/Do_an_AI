@@ -332,8 +332,7 @@ def ve_hinh(m_chon, t_chon, y_that, p, thu_tu, rf):
     fig.tight_layout()
     fig.savefig(str(report_file("nguong_vs_chi_so.png")), dpi=150)
     plt.close(fig)
-    print("Da luu hinh: ma_tran_nham_lan.png, do_quan_trong_dac_trung.png, "
-          "roc_nguong.png, nguong_vs_chi_so.png")
+    print(f"Da luu cac bieu do vao: {REPORTS}")
 
 
 def huan_luyen():

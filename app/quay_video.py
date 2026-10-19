@@ -49,8 +49,8 @@ def quay(ma, ten_nhan, giay, dieu_kien="ngay", dem_nguoc=5):
         raise SystemExit("Khong doc duoc khung hinh tu camera.")
     h, w = frame.shape[:2]
 
-    # Ghi video ở đúng TAN_SO_MAU (15 khung/giây), bất kể camera chạy nhanh hay chậm,
-    # để dòng thời gian trong video luôn chính xác.
+    # Ghi video vao videos/<nhan>/; FPS danh nghia la TAN_SO_MAU.
+    # Khi camera cham hon muc nay, video co the khac thoi gian thuc.
     out = cv2.VideoWriter(str(duong_dan), cv2.VideoWriter_fourcc(*"mp4v"),
                           TAN_SO_MAU, (w, h))
     if not out.isOpened():
@@ -78,9 +78,7 @@ def quay(ma, ten_nhan, giay, dieu_kien="ngay", dem_nguoc=5):
                 break
             dong1 = f"DANG QUAY - con {int(giay - tg) + 1}s"
             mau = (0, 0, 255)
-            # Mỗi 1/15 giây ghi đúng 1 khung. Nếu camera chậm hơn thì lặp lại khung
-            # gần nhất, nhờ vậy 1 giây trong video luôn đúng 1 giây ngoài đời.
-            # Khung lặp khi camera chậm có thể tạo chớp mắt giả; chỉ ghi khung thật.
+            # Chi ghi khung hinh that; khong lap frame khi camera cham.
             if t >= tiep:
                 out.write(frame)
                 so_khung += 1

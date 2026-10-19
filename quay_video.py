@@ -1,3 +1,5 @@
-"""Entrypoint tương thích: python quay_video.py"""
+"""Chay tu thu muc goc: python quay_video.py"""
 import runpy
-runpy.run_module("app.quay_video", run_name="__main__", alter_sys=True)
+
+if __name__ == "__main__":
+    runpy.run_module("app.quay_video", run_name="__main__", alter_sys=True)

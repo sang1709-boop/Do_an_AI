@@ -1,8 +1,0 @@
-# Đọc yêu cầu phụ thuộc từ môi trường đang chạy của bạn và chốt phiên bản sau khi xác minh.
-opencv-python
-mediapipe
-numpy
-pandas
-scikit-learn
-joblib
-matplotlib
