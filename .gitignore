@@ -1,5 +1,32 @@
+# Python environments and temporary files
 venv/
-__pycache__/
-*.pyc
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
 .vscode/
 .idea/
+.env
+.env.*
+!.env.example
+# Training footage, model weights, private data and generated outputs
+/videos/**
+!/videos/.gitkeep
+/data/**
+!/data/.gitkeep
+/models/**
+!/models/.gitkeep
+/reports/**
+!/reports/.gitkeep
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.m4v
+*.pkl
+*.task
+*.csv
+*.log
+# Local legacy output files
+ket_qua_*.txt
+camera_*.jpg
