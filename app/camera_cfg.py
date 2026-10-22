@@ -23,11 +23,27 @@ DUNG_DROIDCAM = False
 DROIDCAM_URL = "http://192.168.100.248:4747/video"
 
 # Số thứ tự camera trong máy (0, 1, 2...). Chạy "python camera_cfg.py tim" để biết số nào.
-WEBCAM_INDEX = 1
+WEBCAM_INDEX = 0
+
+# FPS mong muon cua webcam / gioi han toi da cua vong lap realtime.
+# Camera thuc te co the chi ho tro 30/60 FPS; khong ep phan cung thanh 120 FPS.
+FPS_MUC_TIEU = 120
 # ==============================================
 
 # Giữ tên NGUON_CAMERA để các file khác (nếu có import) vẫn chạy được
 NGUON_CAMERA = DROIDCAM_URL if DUNG_DROIDCAM else WEBCAM_INDEX
+
+
+def dat_fps_camera(cap):
+    """Yeu cau camera chay 120 FPS neu driver ho tro.
+
+    OpenCV/driver co the tu choi gia tri nay. Gia tri tra ve cua get() la
+    thong tin do driver bao, KHONG dam bao FPS anh thuc te.
+    """
+    if cap.isOpened():
+        cap.set(cv2.CAP_PROP_FPS, FPS_MUC_TIEU)
+        return cap.get(cv2.CAP_PROP_FPS)
+    return 0.0
 
 
 def mo_camera():
@@ -46,6 +62,7 @@ def mo_camera():
             "(3) IP/cong trong camera_cfg.py dung voi so app dang hien, "
             "(4) neu dung webcam: dong cac ung dung khac dang dung camera."
         )
+    dat_fps_camera(cap)
     return cap
 
 

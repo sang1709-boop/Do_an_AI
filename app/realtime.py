@@ -52,7 +52,8 @@ from app.tai_xe import (CO_TAY, FILE_POSE, VAI_PHAI, VAI_TRAI, TheoDoiTuTheLai, 
 FILE_MODEL = str(model_file("model.pkl"))
 FILE_MODEL_DAI = str(model_file("model_dai.pkl"))    # bộ phát hiện giấc ngủ trắng (huan_luyen_dai.py)
 DU_DOAN_DAI_MOI = 15        # cứ 15 mẫu (1 giây) dự đoán giấc ngủ trắng một lần
-SO_LAN_DAI = 2              # cần 2 lần liên tiếp vượt ngưỡng
+SO_LAN_DAI = 5              # 5 lần dự đoán liên tiếp (~5 giây) để giảm báo nhầm
+XAC_NHAN_KHONG_CHOP_GIAY = 6.0  # cần quan sát >= 6 giây gần nhất không có dấu hiệu chớp mắt
 CHIEU_RONG_TOI_DA = 640     # giống Bước 4
 DU_DOAN_MOI = 5             # cứ 5 mẫu (~0.33 giây) dự đoán lại một lần
 SO_LAN_LIEN_TIEP = 3        # cần 3 lần dự đoán liên tiếp vượt ngưỡng mới báo động
@@ -60,6 +61,36 @@ DUNG_POSE = True            # False = bỏ qua điểm vai / tay (chạy nhẹ h
 POSE_MOI = 2                # cứ 2 mẫu chạy Pose một lần (~7.5 lần/giây)
 CHI_CANH_BAO_KHI_LAI = False # mặc định KHÔNG tắt cảnh báo do nhận dạng sai tư thế (phím v để bật)
 # ============================================
+
+def xac_nhan_khong_chop_gan_day(cua_so_mau, so_giay=XAC_NHAN_KHONG_CHOP_GIAY):
+    """Lọc báo nhầm mô hình PHỤ khi mắt chỉ nhìn cố định vài giây.
+
+    Kiểm tra EAR trong vài giây GẦN NHẤT chứ không chỉ xác suất
+    của toàn cửa sổ 10 giây. Đây là điều kiện bổ sung, không thể
+    chứng minh tài xế ngủ mắt mở; cần đánh giá trên dữ liệu thực tế.
+    """
+    a = np.asarray(cua_so_mau, dtype=float)
+    so_mau = max(1, int(round(so_giay * TAN_SO_MAU)))
+    if a.ndim != 2 or a.shape[1] < 1 or len(a) < so_mau:
+        return False
+
+    ear = a[:, 0]
+    hop_le = np.isfinite(ear)
+    if hop_le.mean() < 0.8:
+        return False
+    # Mức mở mắt tham chiếu trong cửa sổ 10 giây (tương tự dac_trung.py).
+    moc_mo_mat = float(np.percentile(ear[hop_le], 90))
+    if moc_mo_mat <= 1e-6:
+        return False
+
+    doan_cuoi = ear[-so_mau:]
+    co_du_lieu = np.isfinite(doan_cuoi)
+    if co_du_lieu.mean() < 0.9:
+        return False
+    nguong_chop = 0.8 * moc_mo_mat
+    # Có một lần sụp mí/chớp mắt trong phần hợp lệ => chưa cảnh báo trân trân.
+    return bool(np.all(doan_cuoi[co_du_lieu] >= nguong_chop))
+
 
 DIEM_VE = MAT_PHAI + MAT_TRAI + list(MIENG_NGANG) + [i for cap_ in MIENG_DOC for i in cap_]
 
@@ -106,7 +137,12 @@ def ve_diem(frame, diem, w, h, ban_kinh, mau):
         cv2.circle(frame, (int(x * w), int(y * h)), ban_kinh, mau, -1)
 
 
-def main():
+def main(frame_callback=None, status_callback=None, stop_event=None, command_queue=None, camera_source=None):
+    """Chay realtime. Khi callback duoc cung cap, khong mo cua so OpenCV.
+
+    frame_callback(frame_bgr): gui khung hinh da ve; status_callback(dict): gui telemetry.
+    stop_event: threading.Event; command_queue: queue.Queue cua cac lenh r/n/c/v/[ / ].
+    """
     goi = joblib.load(FILE_MODEL)
     mo_hinh, nguong = goi["pipeline"], goi["nguong"]
     try:
@@ -122,7 +158,19 @@ def main():
     bo_anh = BoXuLyAnh("auto")
     tu_the = TheoDoiTuTheLai()
     chan_theo_tu_the = CHI_CANH_BAO_KHI_LAI and pose_det is not None
-    cap = mo_camera()
+    if camera_source is None:
+        cap = mo_camera()
+    elif isinstance(camera_source, int):
+        cap = cv2.VideoCapture(camera_source, cv2.CAP_DSHOW)
+    else:
+        cap = cv2.VideoCapture(camera_source)
+    if not cap.isOpened():
+        cap.release()
+        detector.close()
+        if pose_det is not None:
+            pose_det.close()
+        raise RuntimeError(f"Khong mo duoc camera: {camera_source!r}")
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     dem = deque(maxlen=CUA_SO)                 # cửa sổ trượt các mẫu gần nhất
     gan_day = deque(maxlen=SO_LAN_LIEN_TIEP)   # các xác suất gần nhất
@@ -150,6 +198,8 @@ def main():
 
     print(f"Dang chay. Nguong canh bao = {nguong:.3f}. Bam q de thoat.")
     while True:
+        if stop_event is not None and stop_event.is_set():
+            break
         ok, frame = cap.read()
         if not ok:
             print("Khong doc duoc khung hinh.")
@@ -256,7 +306,8 @@ def main():
                     xac_suat_dai = float(mo_hinh_dai.predict_proba(vec_dai.reshape(1, -1))[0, 1])
                     gan_dai.append(xac_suat_dai)
                     bao_dong_dai = (len(gan_dai) == SO_LAN_DAI
-                                    and all(q >= nguong_dai for q in gan_dai))
+                                    and all(q >= nguong_dai for q in gan_dai)
+                                    and xac_nhan_khong_chop_gan_day(dem_dai))
             thoi_gian_xl.append((time.perf_counter() - bd) * 1000)
 
         # ---- Chỉ cảnh báo khi tài xế đang ở tư thế lái ----
@@ -268,6 +319,10 @@ def main():
 
         if bao_dong or bao_dong_dai:
             keu_canh_bao()
+
+        # Frame thô dành riêng cho GUI: không ghi chữ/landmark lên hình hiển thị.
+        # Phần suy luận AI, cảnh báo, FPS và các phép vẽ cho chế độ OpenCV vẫn nguyên vẹn.
+        gui_frame = frame.copy() if frame_callback is not None else None
 
         # ---- Vẽ giao diện ----
         if ve_mat:
@@ -343,32 +398,62 @@ def main():
         cv2.putText(frame, f"FPS {fps_hien:.0f}", (w - 110, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
-        cv2.imshow("Phat hien buon ngu - realtime (q: thoat)", frame)
-        phim = cv2.waitKey(1) & 0xFF
-        if phim == ord("q"):
+        if status_callback is not None:
+            status_callback({
+                "probability": xac_suat, "probability_long": xac_suat_dai,
+                "threshold": nguong, "threshold_long": nguong_dai,
+                "alert": bool(bao_dong), "alert_long": bool(bao_dong_dai),
+                "face": bool(ve_mat), "ear": ear, "mar": mar,
+                "fps": fps_hien, "lighting": bo_anh.che_do,
+                "lighting_mode": bo_anh.che_do_chon,
+                "posture": tu_the.ly_do, "driver_gate": chan_theo_tu_the,
+                "eye_reason": ly_do_mat, "samples": so_mau,
+            })
+        if frame_callback is not None:
+            frame_callback(gui_frame)  # Hình camera sạch; không thay đổi dữ liệu AI.
+        else:
+            cv2.imshow("Phat hien buon ngu - realtime (q: thoat)", frame)
+        phim = cv2.waitKey(1) & 0xFF if frame_callback is None else -1
+        commands = []
+        if phim != -1:
+            commands.append(phim)
+        if command_queue is not None:
+            while True:
+                try:
+                    commands.append(ord(command_queue.get_nowait()))
+                except __import__("queue").Empty:
+                    break
+        quit_requested = False
+        for phim in commands:
+            if phim == ord("q"):
+                quit_requested = True
+                break
+            elif phim == ord("r"):
+                dem.clear(); gan_day.clear(); xac_suat, bao_dong = None, False
+                dem_dai.clear(); gan_dai.clear(); xac_suat_dai, bao_dong_dai = None, False
+                mau_tu_lan_cuoi = mau_dai_tu_lan_cuoi = 0
+            elif phim == ord("["):
+                nguong = max(0.05, nguong - 0.05)
+            elif phim == ord("]"):
+                nguong = min(0.95, nguong + 0.05)
+            elif phim == ord("n"):
+                print("Che do sang:", bo_anh.doi_che_do())
+            elif phim == ord("c"):
+                tu_the.dat_lai()
+                print("Hoc lai tu the lai: ngoi dung tu the lai trong vai giay.")
+            elif phim == ord("v") and pose_det is not None:
+                chan_theo_tu_the = not chan_theo_tu_the
+                print("Chi canh bao khi dang lai:", "BAT" if chan_theo_tu_the else "TAT")
+
+        if quit_requested:
             break
-        elif phim == ord("r"):
-            dem.clear(); gan_day.clear(); xac_suat, bao_dong = None, False
-            dem_dai.clear(); gan_dai.clear(); xac_suat_dai, bao_dong_dai = None, False
-            mau_tu_lan_cuoi = mau_dai_tu_lan_cuoi = 0
-        elif phim == ord("["):
-            nguong = max(0.05, nguong - 0.05)
-        elif phim == ord("]"):
-            nguong = min(0.95, nguong + 0.05)
-        elif phim == ord("n"):
-            print("Che do sang:", bo_anh.doi_che_do())
-        elif phim == ord("c"):
-            tu_the.dat_lai()
-            print("Hoc lai tu the lai: ngoi dung tu the lai trong vai giay.")
-        elif phim == ord("v") and pose_det is not None:
-            chan_theo_tu_the = not chan_theo_tu_the
-            print("Chi canh bao khi dang lai:", "BAT" if chan_theo_tu_the else "TAT")
 
     cap.release()
     detector.close()
     if pose_det is not None:
         pose_det.close()
-    cv2.destroyAllWindows()
+    if frame_callback is None:
+        cv2.destroyAllWindows()
 
     # ---- Tổng kết hiệu năng (dùng cho báo cáo) ----
     tong = time.monotonic() - t0
